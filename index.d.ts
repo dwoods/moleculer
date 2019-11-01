@@ -1239,6 +1239,39 @@ declare namespace Moleculer {
 		publish(packet: Packet): PromiseLike<void>;
 	}
 
+	interface NodeCatalogListOptions {
+		onlyAvailable: boolean;
+		withServices: boolean;
+	}
+
+	class NodeCatalog {
+		registry: ServiceRegistry;
+		broker: ServiceBroker;
+		logger: LoggerInstance;
+		nodes: Map<string, BrokerNode>;
+		heartbeatTimer: any;
+		checkNodesTimer: any;
+		offlineTimer: any;
+		disableHeartbeatChecks: boolean;
+		disableOfflineNodeRemoving: boolean;
+
+		startHeartbeatTimers(): void;
+		stopHeartbeatTimers(): void;
+		createLocalNode(): BrokerNode;
+		add(id:string, node:BrokerNode): void;
+		has(id:string): boolean;
+		get(id:string): BrokerNode;
+		count(): number;
+		onlineCount(): number;
+		processNodeInfo(payload: any): any;
+		checkRemoteNodes(): void;
+		checkOfflineNodes(): void;
+		disconnected(nodeID:string, isUnexpected:boolean): void;
+		heartbeat(payload:any): void;
+		list(options: NodeCatalogListOptions): BrokerNode[];
+		toArray(): BrokerNode[];
+	}
+
 	class ServiceRegistry {
 		broker: ServiceBroker;
 		metrics: MetricRegistry;
@@ -1248,7 +1281,7 @@ declare namespace Moleculer {
 
 		StrategyFactory: BaseStrategy;
 
-		nodes: any;
+		nodes: NodeCatalog;
 		services: any;
 		actions: any;
 		events: any;
