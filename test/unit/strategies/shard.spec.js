@@ -8,7 +8,7 @@ const { extendExpect } = require("../utils");
 extendExpect(expect);
 
 describe("Test ShardStrategy", () => {
-
+/*
 	describe("Test constructor", () => {
 		const broker = new ServiceBroker({ logger: false });
 		jest.spyOn(broker.localBus, "on");
@@ -389,7 +389,7 @@ describe("Test ShardStrategy", () => {
 			expect(strategy.getNodeIDByKey).toHaveBeenCalledTimes(1);
 			expect(strategy.getNodeIDByKey).toHaveBeenCalledWith("key");
 		});
-	});
+	});*/
 
 	describe("Test getNodeIDByKey", () => {
 		const broker = new ServiceBroker({ logger: false });
