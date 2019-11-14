@@ -176,7 +176,13 @@ declare namespace Moleculer {
 
 	type MetricsReporterOptions = {
 		type: string;
-		options?: MetricReporterOptions;
+		options?: MetricReporterOptions & (
+			MetricConsoleReporterOptions
+			| MetricCSVReporterOptions
+			| MetricEventReporterOptions
+			| MetricDatadogReporterOptions
+			| MetricPrometheusReporterOptions
+			| MetricStatsDReporterOptions);
 	};
 
 	type MetricRegistryOptions = {
@@ -353,6 +359,53 @@ declare namespace Moleculer {
 
 		metricNameFormatter?: (name: string) => string;
 		labelNameFormatter?: (name: string) => string;
+	}
+
+	type MetricConsoleReporterOptions = {
+		interval?: number;
+		logger?: object;
+		colors?: boolean;
+		onlyChanges?: boolean;
+	}
+
+	type MetricCSVReporterOptions = {
+		folder?: string;
+		delimiter?: string;
+		rowDelimiter?: string;
+		mode?: "metric" | "label";
+		types?: string[] | null;
+		interval?: number
+		filenameFormatter?: string | null;
+		rowFormatter?: string | null;
+	}
+
+	type MetricEventReporterOptions = {
+		eventName?: string;
+		broadcast?: boolean;
+		groups?: string[] | null;
+		onlyChanges?: boolean;
+		interval?: number;
+	}
+
+	type MetricDatadogReporterOptions = {
+		host: string;
+		apiVersion?: string;
+		path?: string;
+		apiKey: string;
+		defaultLabels?: (arg0: MetricRegistry) => (object);
+		interval?: number;
+	}
+
+	type MetricPrometheusReporterOptions = {
+		port?: number;
+		path?: string;
+		defaultLabels?: (arg0: MetricRegistry) => (object);
+	}
+
+	type MetricStatsDReporterOptions = {
+		host?: string;
+		port?: number;
+		maxPayloadSize?: number;
 	}
 
 	class MetricBaseReporter {
