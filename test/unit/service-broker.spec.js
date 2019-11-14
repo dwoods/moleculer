@@ -451,11 +451,16 @@ describe("Test broker.start", () => {
 		broker.broadcastLocal = jest.fn();
 		broker.metrics.set = jest.fn();
 		broker.callMiddlewareHook = jest.fn();
+		broker.scope.enable = jest.fn();
+		broker.tracer.restartScope = jest.fn();
 
 
-		beforeAll(() => broker.start());
+		beforeAll(() =>	broker.start());
 
 		it("should call started of services", () => {
+			expect(broker.scope.enable).toHaveBeenCalledTimes(1);
+			expect(broker.tracer.restartScope).toHaveBeenCalledTimes(1);
+
 			expect(optStarted).toHaveBeenCalledTimes(1);
 			expect(schema.started).toHaveBeenCalledTimes(1);
 			expect(broker.transit.connect).toHaveBeenCalledTimes(1);
@@ -495,10 +500,15 @@ describe("Test broker.start", () => {
 		broker.broadcastLocal = jest.fn();
 		broker.metrics.set = jest.fn();
 		broker.callMiddlewareHook = jest.fn();
+		broker.scope.enable = jest.fn();
+		broker.tracer.restartScope = jest.fn();
 
 		beforeAll(() => broker.start());
 
 		it("should call started of services", () => {
+			expect(broker.scope.enable).toHaveBeenCalledTimes(1);
+			expect(broker.tracer.restartScope).toHaveBeenCalledTimes(1);
+
 			expect(optStarted).toHaveBeenCalledTimes(1);
 			expect(schema.started).toHaveBeenCalledTimes(1);
 			expect(broker.transit.connect).toHaveBeenCalledTimes(1);
@@ -539,12 +549,17 @@ describe("Test broker.start", () => {
 		broker.localBus.emit = jest.fn();
 		broker.metrics.set = jest.fn();
 		broker.callMiddlewareHook = jest.fn();
+		broker.scope.enable = jest.fn();
+		broker.tracer.restartScope = jest.fn();
 
 		it("should reject", () => {
 			return expect(broker.start()).rejects.toBeDefined();
 		});
 
 		it("should not call others", () => {
+			expect(broker.scope.enable).toHaveBeenCalledTimes(1);
+			expect(broker.tracer.restartScope).toHaveBeenCalledTimes(1);
+
 			expect(optStarted).toHaveBeenCalledTimes(0);
 			expect(broker.transit.connect).toHaveBeenCalledTimes(1);
 			expect(schema.started).toHaveBeenCalledTimes(1);
@@ -587,6 +602,8 @@ describe("Test broker.stop", () => {
 		broker.metrics.set = jest.fn();
 		broker.metrics.stop = jest.fn();
 		broker.loggerFactory.stop = jest.fn();
+		broker.scope.stop = jest.fn();
+		broker.tracer.stopAndClearScope = jest.fn();
 
 		broker.cacher = {
 			close: jest.fn(() => Promise.resolve())
@@ -615,6 +632,9 @@ describe("Test broker.stop", () => {
 
 				expect(broker.broadcastLocal).toHaveBeenCalledTimes(1);
 				expect(broker.broadcastLocal).toHaveBeenCalledWith("$broker.stopped");
+
+				expect(broker.scope.stop).toHaveBeenCalledTimes(1);
+				expect(broker.tracer.stopAndClearScope).toHaveBeenCalledTimes(1);
 
 				expect(broker.metrics.set).toHaveBeenCalledTimes(1);
 				expect(broker.metrics.set).toHaveBeenCalledWith("moleculer.broker.started", 0);
@@ -648,6 +668,8 @@ describe("Test broker.stop", () => {
 		broker.metrics.stop = jest.fn();
 		broker.metrics.set = jest.fn();
 		broker.loggerFactory.stop = jest.fn();
+		broker.scope.stop = jest.fn();
+		broker.tracer.stopAndClearScope = jest.fn();
 
 		broker.cacher = {
 			close: jest.fn(() => Promise.resolve())
@@ -676,6 +698,9 @@ describe("Test broker.stop", () => {
 
 				expect(broker.broadcastLocal).toHaveBeenCalledTimes(1);
 				expect(broker.broadcastLocal).toHaveBeenCalledWith("$broker.stopped");
+
+				expect(broker.scope.stop).toHaveBeenCalledTimes(1);
+				expect(broker.tracer.stopAndClearScope).toHaveBeenCalledTimes(1);
 
 				expect(broker.metrics.set).toHaveBeenCalledTimes(1);
 				expect(broker.metrics.set).toHaveBeenCalledWith("moleculer.broker.started", 0);
@@ -708,6 +733,8 @@ describe("Test broker.stop", () => {
 		broker.metrics.set = jest.fn();
 		broker.loggerFactory.stop = jest.fn();
 		broker.callMiddlewareHook = jest.fn();
+		broker.scope.stop = jest.fn();
+		broker.tracer.stopAndClearScope = jest.fn();
 
 		broker.cacher = {
 			close: jest.fn(() => Promise.resolve())
@@ -735,6 +762,9 @@ describe("Test broker.stop", () => {
 
 				expect(broker.broadcastLocal).toHaveBeenCalledTimes(1);
 				expect(broker.broadcastLocal).toHaveBeenCalledWith("$broker.stopped");
+
+				expect(broker.scope.stop).toHaveBeenCalledTimes(1);
+				expect(broker.tracer.stopAndClearScope).toHaveBeenCalledTimes(1);
 
 				expect(broker.metrics.set).toHaveBeenCalledTimes(1);
 				expect(broker.metrics.set).toHaveBeenCalledWith("moleculer.broker.started", 0);
@@ -1176,78 +1206,196 @@ describe("Test broker.registerLocalService", () => {
 
 describe("Test broker.destroyService", () => {
 
-	let stopped = jest.fn();
-	let broker = new ServiceBroker({ logger: false, internalServices: false });
-	let schema = {
-		name: "greeter",
-		actions: {
-			hello() {},
-			welcome() {}
-		},
-		stopped
-	};
-	let service = broker.createService(schema);
+	describe("For not versioned services", () => {
 
-	broker.metrics.set = jest.fn();
-	jest.spyOn(broker, "getLocalService");
+		let stopped = jest.fn();
+		let broker = new ServiceBroker({ logger: false, internalServices: false });
+		let schema = {
+			name: "greeter",
+			actions: {
+				hello() {},
+				welcome() {}
+			},
+			stopped
+		};
+		let service = broker.createService(schema);
 
-	beforeAll(() => broker.start());
-	afterAll(() => broker.stop());
+		broker.metrics.set = jest.fn();
+		jest.spyOn(broker, "getLocalService");
 
-	it("should destroy service", () => {
-		broker.registry.unregisterService = jest.fn();
-		broker.servicesChanged = jest.fn();
-		broker.metrics.set.mockClear();
+		beforeAll(() => broker.start());
+		afterAll(() => broker.stop());
 
-		expect(broker.services.length).toBe(1);
+		it("should destroy service", () => {
+			broker.registry.unregisterService = jest.fn();
+			broker.servicesChanged = jest.fn();
+			broker.metrics.set.mockClear();
 
-		return broker.destroyService(service).catch(protectReject).then(() => {
+			expect(broker.services.length).toBe(1);
 
-			expect(stopped).toHaveBeenCalledTimes(1);
+			return broker.destroyService(service).catch(protectReject).then(() => {
 
-			expect(broker.getLocalService).toHaveBeenCalledTimes(0);
+				expect(stopped).toHaveBeenCalledTimes(1);
 
-			expect(broker.registry.unregisterService).toHaveBeenCalledTimes(1);
-			expect(broker.registry.unregisterService).toHaveBeenCalledWith("greeter", undefined);
+				expect(broker.getLocalService).toHaveBeenCalledTimes(0);
 
-			expect(broker.servicesChanged).toHaveBeenCalledTimes(1);
-			expect(broker.servicesChanged).toHaveBeenCalledWith(true);
+				expect(broker.registry.unregisterService).toHaveBeenCalledTimes(1);
+				expect(broker.registry.unregisterService).toHaveBeenCalledWith("greeter", "node-1234");
 
-			expect(broker.services.length).toBe(0);
+				expect(broker.servicesChanged).toHaveBeenCalledTimes(1);
+				expect(broker.servicesChanged).toHaveBeenCalledWith(true);
 
-			expect(broker.metrics.set).toHaveBeenCalledTimes(1);
-			expect(broker.metrics.set).toHaveBeenCalledWith("moleculer.broker.local.services.total", 0);
+				expect(broker.services.length).toBe(0);
+
+				expect(broker.metrics.set).toHaveBeenCalledTimes(1);
+				expect(broker.metrics.set).toHaveBeenCalledWith("moleculer.broker.local.services.total", 0);
+			});
 		});
+
+		it("should find service by name", () => {
+			broker.createService(schema);
+
+			broker.registry.unregisterService.mockClear();
+			broker.servicesChanged.mockClear();
+			broker.metrics.set.mockClear();
+			broker.getLocalService.mockClear();
+			schema.stopped.mockClear();
+
+			expect(broker.services.length).toBe(1);
+
+			return broker.destroyService("greeter").catch(protectReject).then(() => {
+
+				expect(stopped).toHaveBeenCalledTimes(1);
+
+				expect(broker.getLocalService).toHaveBeenCalledTimes(1);
+				expect(broker.getLocalService).toHaveBeenCalledWith("greeter");
+
+				expect(broker.registry.unregisterService).toHaveBeenCalledTimes(1);
+				expect(broker.registry.unregisterService).toHaveBeenCalledWith("greeter", "node-1234");
+
+				expect(broker.servicesChanged).toHaveBeenCalledTimes(1);
+				expect(broker.servicesChanged).toHaveBeenCalledWith(true);
+
+				expect(broker.services.length).toBe(0);
+
+				expect(broker.metrics.set).toHaveBeenCalledTimes(1);
+				expect(broker.metrics.set).toHaveBeenCalledWith("moleculer.broker.local.services.total", 0);
+			});
+		});
+
 	});
 
-	it("should find service by name", () => {
-		broker.createService(schema);
+	describe("For versioned services", () => {
 
-		broker.registry.unregisterService.mockClear();
-		broker.servicesChanged.mockClear();
-		broker.metrics.set.mockClear();
-		broker.getLocalService.mockClear();
-		schema.stopped.mockClear();
+		let stopped = jest.fn();
+		let broker = new ServiceBroker({ logger: false, internalServices: false });
+		let schema = {
+			name: "greeter",
+			version: 2,
+			actions: {
+				hello() {},
+				welcome() {}
+			},
+			stopped
+		};
+		let service = broker.createService(schema);
 
-		expect(broker.services.length).toBe(1);
+		broker.metrics.set = jest.fn();
+		jest.spyOn(broker, "getLocalService");
 
-		return broker.destroyService("greeter").catch(protectReject).then(() => {
+		beforeAll(() => broker.start());
+		afterAll(() => broker.stop());
 
-			expect(stopped).toHaveBeenCalledTimes(1);
+		it("should destroy service by providing service instance", () => {
+			broker.registry.unregisterService = jest.fn();
+			broker.servicesChanged = jest.fn();
+			broker.metrics.set.mockClear();
 
-			expect(broker.getLocalService).toHaveBeenCalledTimes(1);
-			expect(broker.getLocalService).toHaveBeenCalledWith("greeter");
+			expect(broker.services.length).toBe(1);
 
-			expect(broker.registry.unregisterService).toHaveBeenCalledTimes(1);
-			expect(broker.registry.unregisterService).toHaveBeenCalledWith("greeter", undefined);
+			return broker.destroyService(service).catch(protectReject).then(() => {
 
-			expect(broker.servicesChanged).toHaveBeenCalledTimes(1);
-			expect(broker.servicesChanged).toHaveBeenCalledWith(true);
+				expect(stopped).toHaveBeenCalledTimes(1);
 
-			expect(broker.services.length).toBe(0);
+				expect(broker.getLocalService).toHaveBeenCalledTimes(0);
 
-			expect(broker.metrics.set).toHaveBeenCalledTimes(1);
-			expect(broker.metrics.set).toHaveBeenCalledWith("moleculer.broker.local.services.total", 0);
+				expect(broker.registry.unregisterService).toHaveBeenCalledTimes(1);
+				expect(broker.registry.unregisterService).toHaveBeenCalledWith("v2.greeter", "node-1234");
+
+				expect(broker.servicesChanged).toHaveBeenCalledTimes(1);
+				expect(broker.servicesChanged).toHaveBeenCalledWith(true);
+
+				expect(broker.services.length).toBe(0);
+
+				expect(broker.metrics.set).toHaveBeenCalledTimes(1);
+				expect(broker.metrics.set).toHaveBeenCalledWith("moleculer.broker.local.services.total", 0);
+			});
+		});
+
+		it("should destroy service by providing full service name", () => {
+			broker.createService(schema);
+
+			broker.registry.unregisterService.mockClear();
+			broker.servicesChanged.mockClear();
+			broker.metrics.set.mockClear();
+			broker.getLocalService.mockClear();
+			schema.stopped.mockClear();
+
+			expect(broker.services.length).toBe(1);
+
+			return broker.destroyService("v2.greeter").catch(protectReject).then(() => {
+
+				expect(stopped).toHaveBeenCalledTimes(1);
+
+				expect(broker.getLocalService).toHaveBeenCalledTimes(1);
+				expect(broker.getLocalService).toHaveBeenCalledWith("v2.greeter");
+
+				expect(broker.registry.unregisterService).toHaveBeenCalledTimes(1);
+				expect(broker.registry.unregisterService).toHaveBeenCalledWith("v2.greeter", "node-1234");
+
+				expect(broker.servicesChanged).toHaveBeenCalledTimes(1);
+				expect(broker.servicesChanged).toHaveBeenCalledWith(true);
+
+				expect(broker.services.length).toBe(0);
+
+				expect(broker.metrics.set).toHaveBeenCalledTimes(1);
+				expect(broker.metrics.set).toHaveBeenCalledWith("moleculer.broker.local.services.total", 0);
+			});
+		});
+
+		it("should NOT find service by string name", () => {
+			broker.createService(schema);
+
+			return broker.destroyService("greeter").catch((err)=>  {
+				expect(err).toBeInstanceOf(ServiceNotFoundError);
+				expect(err.message).toBe("Service 'greeter' not found.");
+				// remove service for next tests
+				return broker.destroyService("v2.greeter");
+			});
+		});
+
+		it("should NOT find service by object with name", () => {
+			broker.createService(schema);
+
+			return broker.destroyService({ name: "greeter" }).catch((err)=>  {
+				expect(err).toBeInstanceOf(ServiceNotFoundError);
+				expect(err.message).toBe("Service 'greeter' not found.");
+
+				// remove service for next tests
+				return broker.destroyService({ name: "greeter", version: 2 });
+			});
+		});
+
+		it("should NOT find service by object with name", () => {
+			broker.createService(schema);
+
+			return broker.destroyService({ name: "greeter", version: 123 }).catch((err)=>  {
+				expect(err).toBeInstanceOf(ServiceNotFoundError);
+				expect(err.message).toBe("Service '123.greeter' not found.");
+
+				// remove service for next tests
+				return broker.destroyService({ name: "greeter", version: 2 });
+			});
 		});
 	});
 });
