@@ -563,6 +563,21 @@ module.exports = {
 };
 ```
 
+If you want to use different variable name, or the service can't detect properly the signature, use `context: true` in the event definition:
+```js
+module.exports = {
+    name: "accounts",
+    events: {
+        "user.created": {
+            context: true,
+            handler({ params, nodeID}) {
+                console.log("Payload:", ctx.params);
+                console.log("Sender:", ctx.nodeID);
+            }
+        }
+    }
+};
+```
 
 ## New built-in metrics
 Moleculer v0.14 comes with a brand-new and entirely rewritten metrics module. It is now a built-in module. It collects a lot of internal Moleculer & process metric values. You can easily define your custom metrics. There are several built-in metrics reporters like `Console`, `Prometheus`, `Datadog`, ...etc.
@@ -1762,9 +1777,24 @@ await broker.call("greeter.slow", null, { timeout: 1000 });
 ## `Buffer` supporting improved in serializers
 In earlier version, if request, response or event data was a `Buffer`, the schema-based serializers convert it to JSON string which was not very efficient. In this version all schema-based serializers (ProtoBuf, Avro, Thrift) can detect the type of data & convert it based on the best option and send always as binary data.
 
+## Runner support asynchronous configurations
+The Moleculer Runner supports asynchronous configuration files. In this case you need to return a `Function` in the `moleculer.config.js` file which returns a `Promise` or use `async/await`.
+
+**Example to loada remote configuration from the internet**
+
+```js
+// moleculer.config.js
+const fetch = require("node-fetch");
+
+module.exports = async function() {
+	const res = await fetch("https://pastebin.com/raw/SLZRqfHX");
+	return await res.json();
+};
+```
+
 
 # Other notable changes
-- Kafka transporter upgrade to support kafka-node@4.
+- Kafka transporter upgrade to support kafka-node@5.
 - rename `ctx.metrics` to `ctx.tracing`.
 - `broker.hotReloadService` method has been removed.
 - new `hasEventListener` & `getEventListeners` broker method.

@@ -6,7 +6,7 @@
 
 "use strict";
 
-const Promise = require("bluebird"); // eslint-disable-line no-unused-vars
+const Promise = require("bluebird");
 const _ = require("lodash");
 const { match } = require("../utils");
 const METRIC = require("./constants");
@@ -95,8 +95,13 @@ class MetricRegistry {
 	 * Stop Metric Registry
 	 */
 	stop() {
-		if (this.collectTimer)
+		if (this.collectTimer) {
 			clearInterval(this.collectTimer);
+		}
+
+		if (this.reporter) {
+			return Promise.all(this.reporter.map(r => r.stop()));
+		}
 	}
 
 	/**
